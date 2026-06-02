@@ -1,0 +1,8 @@
+vm
+vm_asan
+vm_tsan
+*.bin
+addresses.txt
+correct.txt
+test_*.txt
+/tmp/
