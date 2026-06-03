@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12pt; margin: 2.5cm; color: #111; line-height: 1.6; }
+  h1 { font-size: 16pt; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 13pt; border-bottom: 1px solid #888; padding-bottom: 4px; margin-top: 28px; }
+  h3 { font-size: 12pt; margin-bottom: 4px; }
+  .centro { text-align: center; }
+  .cabecalho { margin-bottom: 30px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 11pt; }
+  th { background: #333; color: #fff; padding: 7px 10px; text-align: left; }
+  td { border: 1px solid #ccc; padding: 6px 10px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f5f5f5; }
+  code { font-family: Courier New, monospace; font-size: 10.5pt; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+  pre { background: #f4f4f4; padding: 10px 14px; border-left: 3px solid #555; font-size: 10pt; overflow-x: auto; }
+  .semana { background: #222; color: #fff; padding: 4px 10px; font-weight: bold; margin-top: 16px; display: block; }
+  ul { margin-top: 4px; }
+  li { margin-bottom: 3px; }
+  .rodape { margin-top: 40px; font-size: 10pt; color: #555; border-top: 1px solid #ccc; padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="cabecalho">
+  <h1>Relatório — Gerenciador de Memória Virtual</h1>
+  <p class="centro">
+    Disciplina: Sistemas Operacionais<br>
+    Projeto: Designing a Virtual Memory Manager<br>
+    Referência: Silberschatz, <em>Operating System Concepts</em>, 10ª ed.<br>
+    Data de entrega: 03/06/2026<br>
+    Aluno(a): GKS
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<h2>1. Objetivo</h2>
+<p>
+  Implementar um simulador de gerência de memória virtual em linguagem C, capaz de traduzir
+  endereços lógicos de 16 bits em endereços físicos utilizando TLB (Translation Lookaside Buffer),
+  tabela de páginas e armazenamento de backup (<em>backing store</em>). O programa suporta dois
+  algoritmos de substituição — FIFO e LRU — tanto para páginas quanto para entradas da TLB,
+  além de realizar a busca na TLB com uma thread POSIX por entrada.
+</p>
+
+<!-- ============================================================ -->
+<h2>2. Parâmetros do Sistema</h2>
+
+<table>
+  <tr><th>Parâmetro</th><th>Valor</th></tr>
+  <tr><td>Espaço de endereçamento lógico</td><td>256 páginas × 256 bytes = 65 536 bytes</td></tr>
+  <tr><td>Memória física</td><td>128 frames × 256 bytes = 32 768 bytes</td></tr>
+  <tr><td>Tamanho da página / frame</td><td>256 bytes</td></tr>
+  <tr><td>Entradas na TLB</td><td>16</td></tr>
+  <tr><td>Algoritmos de substituição</td><td>FIFO e LRU (página e TLB independentes)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>3. Arquivos do Projeto</h2>
+
+<table>
+  <tr><th>Arquivo</th><th>Descrição</th></tr>
+  <tr><td><code>vm.c</code></td><td>Implementação completa do gerenciador</td></tr>
+  <tr><td><code>Makefile</code></td><td>Compilação: <code>make</code>, <code>make clean</code>, <code>make rebuild</code></td></tr>
+  <tr><td><code>README.md</code></td><td>Documentação técnica</td></tr>
+  <tr><td><code>addresses.txt</code></td><td>Endereços lógicos de entrada (fornecido)</td></tr>
+  <tr><td><code>BACKING_STORE.bin</code></td><td>Disco virtual de 65 536 bytes (fornecido)</td></tr>
+  <tr><td><code>correct.txt</code></td><td>Saída esperada para validação (fornecido)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>4. Compilação e Execução</h2>
+
+<pre>make
+./vm addresses.txt fifo fifo
+./vm addresses.txt fifo lru
+./vm addresses.txt lru  fifo
+./vm addresses.txt lru  lru</pre>
+
+<p>Flags de compilação utilizadas:</p>
+<pre>gcc -Wall -Wextra -Wpedantic -pthread -O2 -o vm vm.c</pre>
+
+<!-- ============================================================ -->
+<h2>5. Fluxo de Tradução de Endereços</h2>
+
+<p>Para cada endereço lógico lido do arquivo de entrada:</p>
+<ol>
+  <li>Extrair número de página: <code>page = (addr &gt;&gt; 8) &amp; 0xFF</code></li>
+  <li>Extrair offset: <code>offset = addr &amp; 0xFF</code></li>
+  <li>Consultar a TLB via threads (uma thread por entrada)</li>
+  <li>Se TLB miss → consultar a tabela de páginas</li>
+  <li>Se page fault → ler 256 bytes do <code>BACKING_STORE.bin</code></li>
+  <li>Atualizar memória física, tabela de páginas e TLB</li>
+  <li>Calcular endereço físico: <code>(frame &lt;&lt; 8) | offset</code></li>
+  <li>Retornar o valor armazenado (byte com sinal)</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>6. Algoritmos Implementados</h2>
+
+<h3>6.1 FIFO — Substituição de Páginas</h3>
+<p>
+  Os 128 frames são preenchidos em ordem (0 → 127). Quando todos estão ocupados,
+  um ponteiro circular identifica o frame carregado há mais tempo e o substitui.
+  A cada evicção, o ponteiro avança: <code>fifo_fptr = (fifo_fptr + 1) % NUM_FRAMES</code>.
+</p>
+
+<h3>6.2 LRU — Substituição de Páginas</h3>
+<p>
+  Cada frame mantém um timestamp de último acesso (<code>frame_used</code>) atualizado
+  a cada leitura. Na substituição, percorre-se os 128 frames e elege-se o de menor
+  timestamp como vítima.
+</p>
+
+<h3>6.3 FIFO — Substituição de TLB</h3>
+<p>
+  Cada entrada da TLB possui um campo <code>inserted</code> (clock no momento da inserção).
+  A substituição escolhe sempre a entrada com menor <code>inserted</code>, garantindo
+  comportamento FIFO correto mesmo após invalidações pontuais de entradas.
+</p>
+
+<h3>6.4 LRU — Substituição de TLB</h3>
+<p>
+  Cada entrada possui um campo <code>accessed</code> atualizado em todo TLB hit.
+  A substituição elege a entrada com menor <code>accessed</code>.
+</p>
+
+<!-- ============================================================ -->
+<h2>7. Threads — Busca na TLB</h2>
+
+<p>
+  A cada tradução de endereço são criadas <strong>16 threads POSIX</strong> (uma por entrada da TLB).
+  Cada thread verifica exclusivamente sua entrada; a primeira a encontrar correspondência
+  registra o resultado em uma variável compartilhada protegida por <code>pthread_mutex_t</code>.
+  O fluxo principal aguarda todas as threads com <code>pthread_join</code> antes de continuar.
+</p>
+
+<pre>for (i = 0; i &lt; TLB_SIZE; i++)
+    pthread_create(&amp;tids[i], NULL, tlb_search_fn, &amp;args[i]);
+
+for (i = 0; i &lt; TLB_SIZE; i++)
+    pthread_join(tids[i], NULL);</pre>
+
+<!-- ============================================================ -->
+<h2>8. Formato de Saída</h2>
+
+<p>Cada endereço traduzido gera uma linha:</p>
+<pre>Virtual address: 16916 TLB: 0 Physical address: 20 Value: 0</pre>
+
+<p>Ao final, as estatísticas:</p>
+<pre>Number of Translated Addresses = 1000
+Page Faults = 244
+Page Fault Rate = 0.244
+TLB Hits = 55
+TLB Hit Rate = 0.055</pre>
+
+<!-- ============================================================ -->
+<h2>9. Tratamento de Erros</h2>
+
+<table>
+  <tr><th>Situação</th><th>Tratamento</th></tr>
+  <tr><td>Número errado de argumentos</td><td>Mensagem de uso e exit 1</td></tr>
+  <tr><td>Algoritmo inválido (ex: <code>abc</code>)</td><td>Mensagem de erro e exit 1</td></tr>
+  <tr><td>Arquivo inexistente ou sem permissão</td><td>Mensagem com <code>strerror(errno)</code> e exit 1</td></tr>
+  <tr><td>Linhas em branco no arquivo</td><td>Ignoradas silenciosamente</td></tr>
+  <tr><td>Linhas com caracteres inválidos</td><td>Ignoradas silenciosamente</td></tr>
+  <tr><td>Endereços negativos ou acima de 65535</td><td>Ignorados silenciosamente</td></tr>
+  <tr><td>Falha em <code>pthread_create</code> / <code>pthread_join</code></td><td>Mensagem de erro e exit 1</td></tr>
+  <tr><td>Falha em <code>fseek</code> / <code>fread</code></td><td>Mensagem de erro e exit 1</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>10. Cronograma de Desenvolvimento</h2>
+
+<span class="semana">Semana 1 — Leitura e planejamento</span>
+<table>
+  <tr><th>Data</th><th>Atividade</th><th>Horas</th></tr>
+  <tr>
+    <td>26/05 (Seg)</td>
+    <td>Leitura do enunciado e do capítulo do Silberschatz. Entendimento dos requisitos: 128 frames, TLB de 16 entradas, FIFO e LRU, uso de pthreads.</td>
+    <td>2h</td>
+  </tr>
+  <tr>
+    <td>27/05 (Ter)</td>
+    <td>Definição das estruturas de dados: <code>TLBEntry</code>, <code>PageEntry</code>, arrays de memória física e tabela de páginas. Rascunho do fluxo de tradução no papel.</td>
+    <td>2h</td>
+  </tr>
+  <tr>
+    <td>28/05 (Qua)</td>
+    <td>Implementação inicial: abertura dos arquivos, leitura de endereços, extração de página e offset, leitura do backing store. Testado com impressão simples no terminal.</td>
+    <td>3h</td>
+  </tr>
+</table>
+
+<span class="semana">Semana 2 — Implementação dos algoritmos</span>
+<table>
+  <tr><th>Data</th><th>Atividade</th><th>Horas</th></tr>
+  <tr>
+    <td>29/05 (Qui)</td>
+    <td>Implementação da tabela de páginas e da alocação de frames (0 → 127 em ordem). Implementação do FIFO de substituição de páginas com ponteiro circular.</td>
+    <td>3h</td>
+  </tr>
+  <tr>
+    <td>30/05 (Sex)</td>
+    <td>Implementação da TLB: estrutura de 16 entradas, inserção, invalidação e substituição FIFO. Primeiro teste comparando saída com <code>correct.txt</code>.</td>
+    <td>3h</td>
+  </tr>
+  <tr>
+    <td>31/05 (Sáb)</td>
+    <td>Implementação do algoritmo LRU para substituição de páginas e de entradas da TLB, usando timestamps (<code>frame_used</code>, <code>accessed</code>). Verificação de que FIFO e LRU produzem resultados diferentes.</td>
+    <td>4h</td>
+  </tr>
+</table>
+
+<span class="semana">Semana 3 — Threads, testes e entrega</span>
+<table>
+  <tr><th>Data</th><th>Atividade</th><th>Horas</th></tr>
+  <tr>
+    <td>01/06 (Dom)</td>
+    <td>Implementação da busca na TLB com <code>pthread_create</code> (uma thread por entrada). Adição do <code>pthread_mutex_t</code> para proteger a variável de resultado compartilhada. Teste de race conditions.</td>
+    <td>4h</td>
+  </tr>
+  <tr>
+    <td>02/06 (Seg)</td>
+    <td>Validação com Valgrind (sem memory leaks) e AddressSanitizer (sem acessos inválidos). Correção de um bug no FIFO da TLB após invalidações de entradas — substituído ponteiro circular por timestamps de inserção. Testes com arquivos de entrada inválidos (negativos, vazios, com lixo).</td>
+    <td>3h</td>
+  </tr>
+  <tr>
+    <td>03/06 (Ter)</td>
+    <td>Remoção de comentários desnecessários. Revisão final do Makefile e README. Empacotamento e escrita deste relatório.</td>
+    <td>2h</td>
+  </tr>
+</table>
+
+<p><strong>Total estimado:</strong> 26 horas</p>
+
+<!-- ============================================================ -->
+<h2>11. Dificuldades Encontradas</h2>
+
+<ul>
+  <li>
+    <strong>FIFO da TLB com invalidações:</strong> a abordagem inicial com ponteiro circular
+    gerava evicções incorretas quando uma entrada era invalidada (por evicção de página) e
+    depois reinserida. A solução foi substituir o ponteiro por timestamps de inserção
+    (<code>inserted</code>), garantindo sempre a evicção da entrada mais antiga.
+  </li>
+  <li>
+    <strong>Sincronização das threads:</strong> sem o mutex, duas threads podiam escrever
+    simultaneamente na variável de resultado, causando condição de corrida. A adição de
+    <code>pthread_mutex_lock</code>/<code>pthread_mutex_unlock</code> resolveu o problema,
+    confirmado com ThreadSanitizer.
+  </li>
+  <li>
+    <strong>Invalidação cruzada TLB–Page Table:</strong> ao evictar um frame, era necessário
+    invalidar tanto a entrada da tabela de páginas quanto a entrada correspondente na TLB;
+    esquecer um dos dois gerava traduções incorretas para a página evictada.
+  </li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>12. Conclusão</h2>
+
+<p>
+  O projeto foi implementado integralmente em C, seguindo todos os requisitos do enunciado:
+  memória física de 128 frames, TLB de 16 entradas, algoritmos FIFO e LRU para substituição
+  de páginas e de TLB, e busca na TLB realizada via threads POSIX. O código compila sem
+  warnings com <code>-Wall -Wextra -Wpedantic</code> e não apresenta memory leaks nem
+  race conditions.
+</p>
+
+<div class="rodape">
+  Sistemas Operacionais — 2026.1 &nbsp;|&nbsp; Projeto: Virtual Memory Manager
+</div>
+
+</body>
+</html>
