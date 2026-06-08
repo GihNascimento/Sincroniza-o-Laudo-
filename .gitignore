@@ -6,3 +6,4 @@ addresses.txt
 correct.txt
 test_*.txt
 /tmp/
+target/
