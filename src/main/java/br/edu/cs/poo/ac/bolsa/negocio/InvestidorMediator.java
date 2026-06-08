@@ -22,7 +22,7 @@ public class InvestidorMediator {
     }
 
     public MensagensValidacao incluirInvestidorPessoa(InvestidorPessoa investidor) {
-        MensagensValidacao msgs = validarCamposInvestidorPessoa(investidor);
+        MensagensValidacao msgs = validarInvestidorPessoa(investidor);
         if (!msgs.estaVazio()) return msgs;
         if (!daoInvPes.incluirInvestidorPessoa(investidor))
             msgs.adicionar("Investidor Pessoa já existente.");
@@ -34,7 +34,7 @@ public class InvestidorMediator {
     }
 
     public MensagensValidacao alterarInvestidorPessoa(InvestidorPessoa investidor) {
-        MensagensValidacao msgs = validarCamposInvestidorPessoa(investidor);
+        MensagensValidacao msgs = validarInvestidorPessoa(investidor);
         if (!msgs.estaVazio()) return msgs;
         if (!daoInvPes.alterarInvestidorPessoa(investidor))
             msgs.adicionar("Investidor Pessoa não existente.");
@@ -43,22 +43,13 @@ public class InvestidorMediator {
 
     public MensagensValidacao excluirInvestidorPessoa(String cpf) {
         MensagensValidacao msgs = new MensagensValidacao();
-        ResultadoValidacao r = ValidadorCpfCnpj.validarCpf(cpf);
-        if (r == ResultadoValidacao.NAO_INFORMADO) {
-            msgs.adicionar("CPF do investidor pessoa não informado.");
-            return msgs;
-        }
-        if (r != null) {
-            msgs.adicionar("CPF do investidor pessoa inválido.");
-            return msgs;
-        }
         if (!daoInvPes.excluirInvestidorPessoa(cpf))
             msgs.adicionar("Investidor Pessoa não existente.");
         return msgs;
     }
 
     public MensagensValidacao incluirInvestidorEmpresa(InvestidorEmpresa investidor) {
-        MensagensValidacao msgs = validarCamposInvestidorEmpresa(investidor);
+        MensagensValidacao msgs = validarInvestidorEmpresa(investidor);
         if (!msgs.estaVazio()) return msgs;
         if (!daoInvEmp.incluirInvestidorEmpresa(investidor))
             msgs.adicionar("Investidor Empresa já existente.");
@@ -70,7 +61,7 @@ public class InvestidorMediator {
     }
 
     public MensagensValidacao alterarInvestidorEmpresa(InvestidorEmpresa investidor) {
-        MensagensValidacao msgs = validarCamposInvestidorEmpresa(investidor);
+        MensagensValidacao msgs = validarInvestidorEmpresa(investidor);
         if (!msgs.estaVazio()) return msgs;
         if (!daoInvEmp.alterarInvestidorEmpresa(investidor))
             msgs.adicionar("Investidor Empresa não existente.");
@@ -79,15 +70,6 @@ public class InvestidorMediator {
 
     public MensagensValidacao excluirInvestidorEmpresa(String cnpj) {
         MensagensValidacao msgs = new MensagensValidacao();
-        ResultadoValidacao r = ValidadorCpfCnpj.validarCnpj(cnpj);
-        if (r == ResultadoValidacao.NAO_INFORMADO) {
-            msgs.adicionar("CNPJ do investidor empresa não informado.");
-            return msgs;
-        }
-        if (r != null) {
-            msgs.adicionar("CNPJ do investidor empresa inválido.");
-            return msgs;
-        }
         if (!daoInvEmp.excluirInvestidorEmpresa(cnpj))
             msgs.adicionar("Investidor Empresa não existente.");
         return msgs;
@@ -104,9 +86,17 @@ public class InvestidorMediator {
     }
 
     public MensagensValidacao alterarInvestidor(Investidor investidor) {
-        if (investidor instanceof InvestidorPessoa) return alterarInvestidorPessoa((InvestidorPessoa) investidor);
-        if (investidor instanceof InvestidorEmpresa) return alterarInvestidorEmpresa((InvestidorEmpresa) investidor);
         MensagensValidacao msgs = new MensagensValidacao();
+        if (investidor instanceof InvestidorPessoa) {
+            if (!daoInvPes.alterarInvestidorPessoa((InvestidorPessoa) investidor))
+                msgs.adicionar("Investidor Pessoa não existente.");
+            return msgs;
+        }
+        if (investidor instanceof InvestidorEmpresa) {
+            if (!daoInvEmp.alterarInvestidorEmpresa((InvestidorEmpresa) investidor))
+                msgs.adicionar("Investidor Empresa não existente.");
+            return msgs;
+        }
         msgs.adicionar("Tipo de investidor desconhecido");
         return msgs;
     }
@@ -125,75 +115,64 @@ public class InvestidorMediator {
         return resultado;
     }
 
-    private MensagensValidacao validarCamposInvestidorPessoa(InvestidorPessoa investidor) {
+    // -------------------------------------------------------------------------
+    // Validações privadas
+    // -------------------------------------------------------------------------
+
+    private MensagensValidacao validarInvestidorPessoa(InvestidorPessoa inv) {
         MensagensValidacao msgs = new MensagensValidacao();
-
-        ResultadoValidacao cpfResult = ValidadorCpfCnpj.validarCpf(
-                investidor != null ? investidor.getCpf() : null);
-        if (cpfResult == ResultadoValidacao.NAO_INFORMADO) {
-            msgs.adicionar("CPF do investidor pessoa não informado.");
-        } else if (cpfResult != null) {
-            msgs.adicionar("CPF do investidor pessoa inválido.");
-        }
-
-        if (investidor == null || investidor.getNome() == null || investidor.getNome().trim().isEmpty()) {
-            msgs.adicionar("Nome do investidor pessoa não informado.");
-        }
-
-        if (investidor == null || investidor.getEndereco() == null
-                || investidor.getEndereco().getLogradouro() == null
-                || investidor.getEndereco().getLogradouro().trim().isEmpty()) {
-            msgs.adicionar("Logradouro do investidor pessoa não informado.");
-        }
-
-        if (investidor == null || investidor.getContatos() == null
-                || investidor.getContatos().getTelefoneCelular() == null
-                || investidor.getContatos().getTelefoneCelular().trim().isEmpty()) {
-            msgs.adicionar("Telefone celular do investidor pessoa não informado.");
-        }
-
-        if (investidor == null || investidor.getContatos() == null
-                || investidor.getContatos().getEmail() == null
-                || investidor.getContatos().getEmail().trim().isEmpty()) {
-            msgs.adicionar("E-mail do investidor pessoa não informado.");
-        }
-
+        validarEndereco(inv == null ? null : inv.getEndereco(), msgs);
+        validarContatos(inv == null ? null : inv.getContatos(), false, msgs);
         return msgs;
     }
 
-    private MensagensValidacao validarCamposInvestidorEmpresa(InvestidorEmpresa investidor) {
+    private MensagensValidacao validarInvestidorEmpresa(InvestidorEmpresa inv) {
         MensagensValidacao msgs = new MensagensValidacao();
-
-        ResultadoValidacao cnpjResult = ValidadorCpfCnpj.validarCnpj(
-                investidor != null ? investidor.getCnpj() : null);
-        if (cnpjResult == ResultadoValidacao.NAO_INFORMADO) {
-            msgs.adicionar("CNPJ do investidor empresa não informado.");
-        } else if (cnpjResult != null) {
-            msgs.adicionar("CNPJ do investidor empresa inválido.");
-        }
-
-        if (investidor == null || investidor.getNome() == null || investidor.getNome().trim().isEmpty()) {
-            msgs.adicionar("Nome do investidor empresa não informado.");
-        }
-
-        if (investidor == null || investidor.getEndereco() == null
-                || investidor.getEndereco().getLogradouro() == null
-                || investidor.getEndereco().getLogradouro().trim().isEmpty()) {
-            msgs.adicionar("Logradouro do investidor empresa não informado.");
-        }
-
-        if (investidor == null || investidor.getContatos() == null
-                || investidor.getContatos().getTelefoneComercial() == null
-                || investidor.getContatos().getTelefoneComercial().trim().isEmpty()) {
-            msgs.adicionar("Telefone comercial do investidor empresa não informado.");
-        }
-
-        if (investidor == null || investidor.getContatos() == null
-                || investidor.getContatos().getEmail() == null
-                || investidor.getContatos().getEmail().trim().isEmpty()) {
-            msgs.adicionar("E-mail do investidor empresa não informado.");
-        }
-
+        validarEndereco(inv == null ? null : inv.getEndereco(), msgs);
+        validarContatos(inv == null ? null : inv.getContatos(), true, msgs);
         return msgs;
+    }
+
+    private void validarEndereco(Endereco end, MensagensValidacao msgs) {
+        String logradouro = end == null ? null : end.getLogradouro();
+        if (logradouro == null || logradouro.trim().isEmpty())
+            msgs.adicionar("Logradouro não informado.");
+
+        String numero = end == null ? null : end.getNumero();
+        if (numero == null || numero.trim().isEmpty())
+            msgs.adicionar("Número não informado.");
+
+        String cidade = end == null ? null : end.getCidade();
+        if (cidade == null || cidade.trim().isEmpty())
+            msgs.adicionar("Cidade não informada.");
+
+        String estado = end == null ? null : end.getEstado();
+        if (estado == null || estado.trim().isEmpty())
+            msgs.adicionar("Estado não informado.");
+
+        String pais = end == null ? null : end.getPais();
+        if (pais == null || pais.trim().isEmpty())
+            msgs.adicionar("País não informado.");
+    }
+
+    private void validarContatos(Contatos cont, boolean pj, MensagensValidacao msgs) {
+        String email = cont == null ? null : cont.getEmail();
+        if (email == null || email.trim().isEmpty() || !email.contains("@"))
+            msgs.adicionar("E-mail inválido.");
+
+        String telefone = cont == null ? null : cont.getTelefoneCelular();
+        if (pj) telefone = cont == null ? null : cont.getTelefoneComercial();
+
+        if (telefone == null || telefone.trim().isEmpty()) {
+            msgs.adicionar("Telefone não informado.");
+        } else if (!telefone.matches("[0-9]+")) {
+            msgs.adicionar("Telefone inválido.");
+        }
+
+        if (pj) {
+            String nomeContato = cont == null ? null : cont.getNomeContato();
+            if (nomeContato == null || nomeContato.trim().isEmpty())
+                msgs.adicionar("Nome do contato não informado.");
+        }
     }
 }
