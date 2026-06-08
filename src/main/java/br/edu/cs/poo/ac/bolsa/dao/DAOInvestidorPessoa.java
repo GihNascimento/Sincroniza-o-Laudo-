@@ -8,19 +8,19 @@ public class DAOInvestidorPessoa extends DAORegistro {
         super(InvestidorPessoa.class);
     }
 
-    public InvestidorPessoa buscar(String cpf) {
+    public InvestidorPessoa buscarInvestidorPessoa(String cpf) {
         return (InvestidorPessoa) super.buscar(cpf);
     }
 
-    public boolean incluir(InvestidorPessoa investidor) {
+    public boolean incluirInvestidorPessoa(InvestidorPessoa investidor) {
         return super.incluir(investidor);
     }
 
-    public boolean alterar(InvestidorPessoa investidor) {
+    public boolean alterarInvestidorPessoa(InvestidorPessoa investidor) {
         return super.alterar(investidor);
     }
 
-    public boolean excluir(String cpf) {
+    public boolean excluirInvestidorPessoa(String cpf) {
         return super.excluir(cpf);
     }
 

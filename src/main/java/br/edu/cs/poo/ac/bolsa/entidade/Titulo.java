@@ -2,9 +2,9 @@ package br.edu.cs.poo.ac.bolsa.entidade;
 
 import br.edu.cs.poo.ac.bolsa.util.Registro;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 public class Titulo extends Registro {
     private Investidor investidor;
@@ -17,7 +17,6 @@ public class Titulo extends Registro {
     private LocalDate dataUltimoRendimento;
     private StatusTitulo status;
 
-    // Novo construtor com Investidor genérico (9 parâmetros)
     public Titulo(Investidor investidor, Ativo ativo, BigDecimal valorInvestido,
                   BigDecimal valorAtual, BigDecimal taxaDiaria, LocalDate dataAplicacao,
                   LocalDate dataVencimento, LocalDate dataUltimoRendimento, StatusTitulo status) {
@@ -32,7 +31,7 @@ public class Titulo extends Registro {
         this.status = status;
     }
 
-    // Construtor antigo com InvestidorPessoa e InvestidorEmpresa (10 parâmetros) - compatibilidade
+    // Construtor legado com InvestidorPessoa/InvestidorEmpresa (10 parâmetros)
     public Titulo(InvestidorPessoa investidorPessoa, InvestidorEmpresa investidorEmpresa,
                   Ativo ativo, BigDecimal valorInvestido, BigDecimal valorAtual,
                   BigDecimal taxaDiaria, LocalDate dataAplicacao, LocalDate dataVencimento,
@@ -66,15 +65,27 @@ public class Titulo extends Registro {
     }
 
     public boolean render() {
-        BigDecimal fator = BigDecimal.ONE.add(taxaDiaria.divide(new BigDecimal("100"), 10, java.math.RoundingMode.HALF_UP));
-        valorAtual = valorAtual.multiply(fator).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (status != StatusTitulo.ATIVO) return false;
 
         LocalDate hoje = LocalDate.now();
-        if (dataUltimoRendimento == null || !dataUltimoRendimento.plusMonths(1).isAfter(hoje)) {
-            dataUltimoRendimento = hoje;
-            return true;
+
+        if (!hoje.isBefore(dataVencimento)) return false;
+        if (!hoje.isAfter(dataAplicacao)) return false;
+
+        long dias;
+        if (dataUltimoRendimento == null) {
+            dias = ChronoUnit.DAYS.between(dataAplicacao, hoje);
+        } else {
+            dias = ChronoUnit.DAYS.between(dataUltimoRendimento, hoje);
         }
-        return false;
+
+        if (dias <= 0) return false;
+
+        BigDecimal fator = BigDecimal.ONE.add(
+                taxaDiaria.divide(new BigDecimal("100")));
+        valorAtual = valorAtual.multiply(fator.pow((int) dias));
+        dataUltimoRendimento = hoje;
+        return true;
     }
 
     public Investidor getInvestidor() { return investidor; }

@@ -1,8 +1,8 @@
 package br.edu.cesarschool.next.oo.persistenciaobjetos;
 
 import java.io.*;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class CadastroObjetos {
@@ -15,17 +15,9 @@ public class CadastroObjetos {
         new File(dirPath).mkdirs();
     }
 
-    private String resolveId(Object obj) {
-        try {
-            Method m = obj.getClass().getMethod("getIdentificador");
-            return (String) m.invoke(obj);
-        } catch (Exception e) {
-            throw new RuntimeException("Objeto não possui getIdentificador(): " + e.getMessage());
-        }
-    }
-
     private File arquivo(String id) {
-        return new File(dirPath + File.separator + id + ".dat");
+        String safeId = id.replaceAll("[/\\\\:*?\"<>|]", "_");
+        return new File(dirPath + File.separator + safeId + ".dat");
     }
 
     public Object buscar(String id) {
@@ -38,17 +30,16 @@ public class CadastroObjetos {
         }
     }
 
-    public void incluir(Serializable obj) {
-        String id = resolveId(obj);
+    public void incluir(Serializable obj, String id) {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(arquivo(id)))) {
             oos.writeObject(obj);
         } catch (IOException e) {
-            throw new RuntimeException("Erro ao incluir objeto: " + e.getMessage());
+            throw new RuntimeException("Erro ao incluir: " + e.getMessage());
         }
     }
 
-    public void alterar(Serializable obj) {
-        incluir(obj);
+    public void alterar(Serializable obj, String id) {
+        incluir(obj, id);
     }
 
     public void excluir(String id) {
@@ -59,6 +50,7 @@ public class CadastroObjetos {
         File dir = new File(dirPath);
         File[] arquivos = dir.listFiles((d, name) -> name.endsWith(".dat"));
         if (arquivos == null || arquivos.length == 0) return new Object[0];
+        Arrays.sort(arquivos);
         List<Object> lista = new ArrayList<>();
         for (File f : arquivos) {
             try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(f))) {

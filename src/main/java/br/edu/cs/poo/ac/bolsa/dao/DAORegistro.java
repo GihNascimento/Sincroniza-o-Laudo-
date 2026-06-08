@@ -14,13 +14,13 @@ public class DAORegistro extends DAOGenerico {
 
     public boolean incluir(Registro r) {
         if (buscar(r.getIdentificador()) != null) return false;
-        cadastro.incluir(r);
+        cadastro.incluir(r, r.getIdentificador());
         return true;
     }
 
     public boolean alterar(Registro r) {
         if (buscar(r.getIdentificador()) == null) return false;
-        cadastro.alterar(r);
+        cadastro.alterar(r, r.getIdentificador());
         return true;
     }
 

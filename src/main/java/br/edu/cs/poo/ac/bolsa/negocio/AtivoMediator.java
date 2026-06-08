@@ -7,36 +7,55 @@ import br.edu.cs.poo.ac.bolsa.util.MensagensValidacao;
 public class AtivoMediator {
 
     private static AtivoMediator instancia;
-    private DAOAtivo daoAtivo = new DAOAtivo();
+    private DAOAtivo daoAtivo;
 
-    private AtivoMediator() {}
+    public AtivoMediator() {
+        daoAtivo = new DAOAtivo();
+    }
 
     public static AtivoMediator getInstancia() {
         if (instancia == null) instancia = new AtivoMediator();
         return instancia;
     }
 
-    public MensagensValidacao incluirAtivo(Ativo ativo) {
+    public MensagensValidacao incluir(Ativo ativo) {
         MensagensValidacao msgs = new MensagensValidacao();
-        if (ativo == null) { msgs.adicionar("Ativo não pode ser nulo"); return msgs; }
-        if (!daoAtivo.incluir(ativo)) msgs.adicionar("Ativo já cadastrado");
+        if (ativo.getCodigo() <= 0) {
+            msgs.adicionar("Código deve ser maior que zero.");
+            return msgs;
+        }
+        if (!daoAtivo.incluir(ativo)) {
+            msgs.adicionar("Ativo já existente.");
+        }
         return msgs;
     }
 
-    public Ativo buscarAtivo(long codigo) {
+    public Ativo buscar(long codigo) {
+        if (codigo <= 0) return null;
         return daoAtivo.buscar(codigo);
     }
 
-    public MensagensValidacao alterarAtivo(Ativo ativo) {
+    public MensagensValidacao alterar(Ativo ativo) {
         MensagensValidacao msgs = new MensagensValidacao();
-        if (ativo == null) { msgs.adicionar("Ativo não pode ser nulo"); return msgs; }
-        if (!daoAtivo.alterar(ativo)) msgs.adicionar("Ativo não cadastrado");
+        if (ativo.getDescricao() == null || ativo.getDescricao().trim().isEmpty()) {
+            msgs.adicionar("Descrição é obrigatória.");
+            return msgs;
+        }
+        if (!daoAtivo.alterar(ativo)) {
+            msgs.adicionar("Ativo não existente.");
+        }
         return msgs;
     }
 
-    public MensagensValidacao excluirAtivo(long codigo) {
+    public MensagensValidacao excluir(long codigo) {
         MensagensValidacao msgs = new MensagensValidacao();
-        if (!daoAtivo.excluir(codigo)) msgs.adicionar("Ativo não cadastrado");
+        if (codigo <= 0) {
+            msgs.adicionar("Código deve ser maior que zero.");
+            return msgs;
+        }
+        if (!daoAtivo.excluir(codigo)) {
+            msgs.adicionar("Ativo não existente.");
+        }
         return msgs;
     }
 }

@@ -8,19 +8,19 @@ public class DAOInvestidorEmpresa extends DAORegistro {
         super(InvestidorEmpresa.class);
     }
 
-    public InvestidorEmpresa buscar(String cnpj) {
+    public InvestidorEmpresa buscarInvestidorEmpresa(String cnpj) {
         return (InvestidorEmpresa) super.buscar(cnpj);
     }
 
-    public boolean incluir(InvestidorEmpresa investidor) {
+    public boolean incluirInvestidorEmpresa(InvestidorEmpresa investidor) {
         return super.incluir(investidor);
     }
 
-    public boolean alterar(InvestidorEmpresa investidor) {
+    public boolean alterarInvestidorEmpresa(InvestidorEmpresa investidor) {
         return super.alterar(investidor);
     }
 
-    public boolean excluir(String cnpj) {
+    public boolean excluirInvestidorEmpresa(String cnpj) {
         return super.excluir(cnpj);
     }
 }

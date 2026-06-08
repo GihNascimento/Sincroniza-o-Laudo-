@@ -46,35 +46,33 @@ public class TituloMediator {
 
         Ativo ativo = null;
         if (dados.getCodigoAtivo() > 0) {
-            ativo = ativoMediator.buscarAtivo(dados.getCodigoAtivo());
-            if (ativo == null) {
-                msgs.adicionar("Ativo não encontrado");
-            }
+            ativo = ativoMediator.buscar(dados.getCodigoAtivo());
+            if (ativo == null) msgs.adicionar("Ativo não encontrado");
         }
 
         Investidor investidor = null;
         if (cpfOuCnpj != null && !cpfOuCnpj.trim().isEmpty()) {
             investidor = investidorMediator.buscarInvestidor(cpfOuCnpj);
-            if (investidor == null) {
-                msgs.adicionar("Investidor não encontrado");
-            }
+            if (investidor == null) msgs.adicionar("Investidor não encontrado");
         }
 
         if (ativo != null && dados.getValorInvestido() != null) {
-            if (dados.getValorInvestido().compareTo(ativo.getValorMinimoAplicacao()) < 0
-                    || dados.getValorInvestido().compareTo(ativo.getValorMaximoAplicacao()) > 0) {
+            BigDecimal minimo = BigDecimal.valueOf(ativo.getValorMinimoAplicacao());
+            BigDecimal maximo = BigDecimal.valueOf(ativo.getValorMaximoAplicacao());
+            if (dados.getValorInvestido().compareTo(minimo) < 0
+                    || dados.getValorInvestido().compareTo(maximo) > 0) {
                 msgs.adicionar("Valor investido fora da faixa permitida");
             }
         }
 
         if (ativo != null && dados.getTaxaDiaria() != null) {
-            BigDecimal taxaDiaria = dados.getTaxaDiaria();
             BigDecimal cem = new BigDecimal("100");
-            BigDecimal fator = BigDecimal.ONE.add(taxaDiaria.divide(cem, 10, RoundingMode.HALF_UP));
+            BigDecimal fator = BigDecimal.ONE.add(
+                    dados.getTaxaDiaria().divide(cem, 10, RoundingMode.HALF_UP));
             BigDecimal fator30 = fator.pow(30, new MathContext(10, RoundingMode.HALF_UP));
             BigDecimal taxaMensal = cem.multiply(fator30.subtract(BigDecimal.ONE));
-            if (taxaMensal.compareTo(ativo.getTaxaMensalMinima()) < 0
-                    || taxaMensal.compareTo(ativo.getTaxaMensalMaxima()) > 0) {
+            if (taxaMensal.compareTo(BigDecimal.valueOf(ativo.getTaxaMensalMinima())) < 0
+                    || taxaMensal.compareTo(BigDecimal.valueOf(ativo.getTaxaMensalMaxima())) > 0) {
                 msgs.adicionar("Taxa diária fora da faixa permitida");
             }
         }
@@ -89,12 +87,11 @@ public class TituloMediator {
         if (!msgs.estaVazio()) throw new ExcecaoNegocio(msgs);
 
         LocalDate dataAplicacao = LocalDate.now();
-        LocalDate dataVencimento = dataAplicacao.plusMonths(ativo.getPrazoEmMeses());
-
-        Titulo titulo = new Titulo(investidor, ativo, dados.getValorInvestido(),
-                dados.getValorInvestido(), dados.getTaxaDiaria(),
-                dataAplicacao, dataVencimento, null, StatusTitulo.ATIVO);
-
+        Titulo titulo = new Titulo(investidor, ativo,
+                dados.getValorInvestido(), dados.getValorInvestido(),
+                dados.getTaxaDiaria(), dataAplicacao,
+                dataAplicacao.plusMonths(ativo.getPrazoEmMeses()),
+                null, StatusTitulo.ATIVO);
         daoTitulo.incluir(titulo);
     }
 
@@ -105,12 +102,14 @@ public class TituloMediator {
             if (titulo.getStatus() != StatusTitulo.ATIVO) continue;
             boolean rendeu = titulo.render();
             if (rendeu) {
-                double bonus = 0.0001 * (titulo.getValorAtual().subtract(titulo.getValorInvestido())).doubleValue();
-                Investidor investidor = investidorMediator.buscarInvestidor(
+                BigDecimal bonus = titulo.getValorAtual()
+                        .subtract(titulo.getValorInvestido())
+                        .multiply(new BigDecimal("0.0001"));
+                Investidor inv = investidorMediator.buscarInvestidor(
                         titulo.getInvestidor().getIdentificador());
-                if (investidor != null) {
-                    investidor.creditarBonus(bonus);
-                    investidorMediator.alterarInvestidor(investidor);
+                if (inv != null) {
+                    inv.creditarBonus(bonus);
+                    investidorMediator.alterarInvestidor(inv);
                 }
             }
             if (!titulo.getDataVencimento().isAfter(LocalDate.now())) {
@@ -138,12 +137,12 @@ public class TituloMediator {
         titulo.setStatus(StatusTitulo.CANCELADO);
         daoTitulo.alterar(titulo);
 
-        Investidor investidor = investidorMediator.buscarInvestidor(
+        Investidor inv = investidorMediator.buscarInvestidor(
                 titulo.getInvestidor().getIdentificador());
-        if (investidor != null) {
-            double debito = 0.7 * titulo.getValorAtual().doubleValue();
-            investidor.debitarBonus(debito);
-            investidorMediator.alterarInvestidor(investidor);
+        if (inv != null) {
+            BigDecimal debito = inv.getBonus().multiply(new BigDecimal("0.7"));
+            inv.debitarBonus(debito);
+            investidorMediator.alterarInvestidor(inv);
         }
     }
 }

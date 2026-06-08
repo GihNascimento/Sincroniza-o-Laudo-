@@ -3,11 +3,9 @@ package br.edu.cs.poo.ac.bolsa.entidade;
 import java.math.BigDecimal;
 
 public enum FaixaRenda {
-    A(new BigDecimal("0")),
-    B(new BigDecimal("2000")),
-    C(new BigDecimal("5000")),
-    D(new BigDecimal("10000")),
-    E(new BigDecimal("20000"));
+    REGULAR(new BigDecimal("0")),
+    DIFERENCIADA(new BigDecimal("5000")),
+    PREMIUM(new BigDecimal("10000"));
 
     private BigDecimal valorInicial;
 

@@ -5,37 +5,42 @@ import java.math.BigDecimal;
 
 public abstract class Investidor extends Registro {
     private String nome;
-    private FaixaRenda faixaRenda;
-    private Contatos contatos;
     private Endereco endereco;
-    private double saldo;
+    private BigDecimal bonus;
+    private Contatos contatos;
 
-    public Investidor(String nome, FaixaRenda faixaRenda, Contatos contatos, Endereco endereco) {
+    public Investidor() {
+        this.bonus = BigDecimal.ZERO;
+    }
+
+    public Investidor(String nome, Endereco endereco, BigDecimal bonus, Contatos contatos) {
         this.nome = nome;
-        this.faixaRenda = faixaRenda;
-        this.contatos = contatos;
         this.endereco = endereco;
-        this.saldo = 0;
+        this.bonus = (bonus != null) ? bonus : BigDecimal.ZERO;
+        this.contatos = contatos;
     }
 
     public abstract BigDecimal getEntradaFinanceira();
 
-    public void creditarBonus(double valor) { saldo += valor; }
+    public void creditarBonus(BigDecimal valor) {
+        if (valor == null) return;
+        bonus = bonus.add(valor);
+    }
 
-    public void debitarBonus(double valor) { saldo -= valor; }
+    public void debitarBonus(BigDecimal valor) {
+        if (valor == null) return;
+        bonus = bonus.subtract(valor);
+    }
+
+    public BigDecimal getBonus() { return bonus; }
+    public void setBonus(BigDecimal bonus) { this.bonus = bonus; }
 
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
 
-    public FaixaRenda getFaixaRenda() { return faixaRenda; }
-    public void setFaixaRenda(FaixaRenda faixaRenda) { this.faixaRenda = faixaRenda; }
-
-    public Contatos getContatos() { return contatos; }
-    public void setContatos(Contatos contatos) { this.contatos = contatos; }
-
     public Endereco getEndereco() { return endereco; }
     public void setEndereco(Endereco endereco) { this.endereco = endereco; }
 
-    public double getSaldo() { return saldo; }
-    public void setSaldo(double saldo) { this.saldo = saldo; }
+    public Contatos getContatos() { return contatos; }
+    public void setContatos(Contatos contatos) { this.contatos = contatos; }
 }
